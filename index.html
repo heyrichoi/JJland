@@ -274,11 +274,10 @@
   .roulette-wrapper.fullscreen .result-box {
     display: none; /* 스핀 중에는 불필요한 요소 숨김 */
   }
+  
+  /* .wheel-container scale은 JS에서 동적으로 제어하므로 CSS 고정값 제거 */
   .roulette-wrapper.fullscreen .wheel-container {
-    transform: scale(1.5); /* 룰렛 확대 */
-  }
-  @media (max-width: 640px) {
-    .roulette-wrapper.fullscreen .wheel-container { transform: scale(1.1); }
+    /* transform: scale(1.5); <- 제거됨, JS에서 뷰포트에 맞춰 계산 */
   }
 
   .roulette-title {
@@ -800,6 +799,10 @@
   resultOverlay.addEventListener('click', () => {
     resultOverlay.style.display = 'none';
     rouletteWrapper.classList.remove('fullscreen');
+    
+    // 스케일 초기화
+    const container = rouletteWrapper.querySelector('.wheel-container');
+    container.style.transform = '';
   });
 
   function initPresetSelect() {
@@ -1201,6 +1204,18 @@
     // 전체 화면 모드 진입
     rouletteWrapper.classList.add('fullscreen');
 
+    // 뷰포트 크기에 맞춰 스케일 계산 (여백 고려)
+    const margin = 40;
+    const baseSize = 360; // CSS에 정의된 wheel-container 크기
+    const minDimension = Math.min(window.innerWidth, window.innerHeight) - (margin * 2);
+    let scale = minDimension / baseSize;
+    // 최소한의 크기는 보장
+    if (scale < 0.5) scale = 0.5; 
+
+    // 인라인 스타일로 scale 적용 (CSS transform과 transition 유지)
+    const container = rouletteWrapper.querySelector('.wheel-container');
+    container.style.transform = `scale(${scale})`;
+
     const targetBase = -90;
     let phi = (targetAngle + currentRotation - targetBase) % 360;
     if (phi < 0) phi += 360;
@@ -1209,10 +1224,21 @@
     const finalRotation = currentRotation + delta;
 
     const duration = spinDuration;
-    wheel.style.transition =
-      `transform ${duration}s cubic-bezier(0.19, 1, 0.22, 1)`;
-    wheelLabels.style.transition =
-      `transform ${duration}s cubic-bezier(0.19, 1, 0.22, 1)`;
+    // transition 속성을 재설정하여 scale과 rotate가 동시에 부드럽게 적용되도록 함
+    // scale은 위에서 inline style로 세팅했고, rotate는 여기서 transform으로 덮어쓰므로 
+    // 두 변환을 합쳐서 문자열을 만들어야 함
+    
+    // 주의: transform 속성을 하나로 합쳐야 함. 위에서 scale만 설정하면, 아래에서 rotate 설정시 덮어씌워짐.
+    // 따라서 scale 값을 변수에 저장해두고 여기서 같이 적용해야 함.
+    
+    // wheel 자체는 rotate만 담당하고, wheel-container가 scale을 담당하는 구조라면 간섭 없음.
+    // HTML 구조: .wheel-container > .wheel
+    // .wheel-container에 scale 적용, .wheel에 rotate 적용.
+    // 위 코드에서 container는 .wheel-container임. OK.
+    
+    // .wheel 회전 애니메이션
+    wheel.style.transition = `transform ${duration}s cubic-bezier(0.19, 1, 0.22, 1)`;
+    wheelLabels.style.transition = `transform ${duration}s cubic-bezier(0.19, 1, 0.22, 1)`;
 
     requestAnimationFrame(() => {
       wheel.style.transform = `rotate(${finalRotation}deg)`;
