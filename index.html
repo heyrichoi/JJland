@@ -189,8 +189,6 @@
     padding-inline: 10px;
     font-size: 0.78rem;
   }
-
-  /* 새로 추가된 + 버튼 스타일 */
   .btn-add-full {
     width: 100%;
     margin-top: 8px;
@@ -213,7 +211,6 @@
     transform: translateY(1px);
     box-shadow: 0 2px 8px rgba(249, 115, 22, 0.4);
   }
-
   .checkbox-row {
     display: flex;
     align-items: center;
@@ -253,7 +250,6 @@
     box-shadow: inset 0 0 0 1px rgba(31,41,55,0.9);
     transition: all 0.5s ease; /* 전체 화면 전환용 */
   }
-  
   /* 전체 화면 모드 스타일 */
   .roulette-wrapper.fullscreen {
     position: fixed;
@@ -274,12 +270,6 @@
   .roulette-wrapper.fullscreen .result-box {
     display: none; /* 스핀 중에는 불필요한 요소 숨김 */
   }
-  
-  /* .wheel-container scale은 JS에서 동적으로 제어하므로 CSS 고정값 제거 */
-  .roulette-wrapper.fullscreen .wheel-container {
-    /* transform: scale(1.5); <- 제거됨, JS에서 뷰포트에 맞춰 계산 */
-  }
-
   .roulette-title {
     font-size: 0.9rem;
     font-weight: 600;
@@ -407,7 +397,6 @@
     border-color: rgba(248,181,71,0.9);
     box-shadow: 0 0 0 1px rgba(248,181,71,0.7);
   }
-
   /* 전체 화면 결과 팝업 */
   .result-overlay {
     position: fixed;
@@ -521,6 +510,29 @@
     80%   { opacity: 1; }
     100% { transform: translate(-50%, -50%) scale(1.4); opacity: 0; }
   }
+  /* 한번 더 이벤트 오버레이 */
+  .one-more-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 1500; /* 결과창보다 아래, 룰렛보다 위 */
+    display: none;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0,0,0,0.6);
+    backdrop-filter: blur(4px);
+  }
+  .one-more-img {
+    width: min(85vw, 600px);
+    height: auto;
+    object-fit: contain;
+    filter: drop-shadow(0 0 30px rgba(255,215,0,0.6));
+    animation: popIn 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  }
+  @keyframes popIn {
+    from { transform: scale(0.3); opacity: 0; }
+    to { transform: scale(1); opacity: 1; }
+  }
+
   @media (max-width: 880px) {
     body { padding: 16px; }
     .app-main { grid-template-columns: minmax(0,1fr); }
@@ -549,7 +561,7 @@
   <header class="app-header">
     <div class="title-section">
       <div class="title-logo-wrap">
-        <img class="title-logo" src="https://github.com/heyrichoi/JJland/blob/main/%EB%A3%B0%EB%A0%9B%20%EB%A1%9C%EA%B3%A0.png?raw=true" />
+        <img class="title-logo" src="https://github.com/heyrichoi/JJland/blob/main/%EB%A3%B0%EB%A0%9B%20%EB%A1%9C%EA%B3%A0.png?raw=true" alt="JJ Land Logo" />
       </div>
     </div>
   </header>
@@ -637,7 +649,7 @@
         <div class="wheel" id="wheel"></div>
         <div class="wheel-labels" id="wheelLabels"></div>
         <div class="wheel-center"></div>
-        <img class="pointer" src="https://github.com/heyrichoi/JJland/blob/main/ChatGPT%20Image%202025%EB%85%84%2011%EC%9B%94%2015%EC%9D%BC%20%EC%98%A4%EC%A0%84%2001_30_28.png?raw=true" alt="" />
+        <img class="pointer" src="https://github.com/heyrichoi/JJland/blob/main/ChatGPT%20Image%202025%EB%85%84%2011%EC%9B%94%2015%EC%9D%BC%20%EC%98%A4%EC%A0%84%2001_30_28.png?raw=true" alt="Pointer" />
       </div>
 
       <div class="result-box">
@@ -645,12 +657,12 @@
         <div class="result-value" id="resultValue"></div>
       </div>
 
-      <div class="speed-row">
+      <div class="speed-row" style="display:none;"> <!-- 속도 조절 숨김 -->
         <span class="speed-label">룰렛 속도</span>
         <select id="speedSelect" class="speed-select">
-          <option value="verySlow" selected>매우 느리게</option>
+          <option value="verySlow">매우 느리게</option>
           <option value="slow">느리게</option>
-          <option value="normal">보통</option>
+          <option value="normal" selected>보통</option>
           <option value="fast">빠르게</option>
         </select>
       </div>
@@ -660,12 +672,16 @@
   </main>
 </div>
 
+<div class="one-more-overlay" id="oneMoreOverlay">
+  <img src="https://github.com/heyrichoi/JJland/blob/main/Gemini_Generated_Image_h9g4tgh9g4tgh9g4-removebg-preview.png?raw=true" class="one-more-img" />
+</div>
+
 <div class="result-overlay" id="resultOverlay">
   <div class="result-modal">
     <img
       class="result-modal-logo"
-      src="https://github.com/heyrichoi/JJland/blob/main/ChatGPT_Image_2025%EB%85%84%2011%EC%9B%94%2015%EC%9D%BC_%EC%98%A4%ED%9B%84_06_09_27-removebg-preview.png?raw=true"
-      alt=""
+      src="https://github.com/heyrichoi/JJland/blob/main/ChatGPT_Image_2025%EB%85%84_11%EC%9B%94_15%EC%9D%BC_%EC%98%A4%ED%9B%84_06_09_27-removebg-preview.png?raw=true"
+      alt="Result Logo"
     />
     <div class="fireworks"><div class="ring"></div></div>
     <div class="result-modal-text" id="resultModalText"></div>
@@ -700,6 +716,7 @@
 
   const resultOverlay = document.getElementById('resultOverlay');
   const resultModalText = document.getElementById('resultModalText');
+  const oneMoreOverlay = document.getElementById('oneMoreOverlay');
 
   const colors = ['#f97316', '#38bdf8', '#a855f7', '#22c55e', '#ec4899', '#4f46e5', '#facc15', '#14b8a6'];
 
@@ -754,9 +771,7 @@
     }
   ];
 
-  // 프리셋 상태 저장소 (세션 유지용)
   const presetStorage = {};
-  // 초기화: presets 배열의 내용을 깊은 복사로 저장소에 채움
   presets.forEach(p => {
     presetStorage[p.id] = [...p.items];
   });
@@ -774,22 +789,19 @@
     '5배': 5
   };
 
-  // 일반 룰렛 상태
-  let items = []; // 현재 활성 아이템 배열 (storage의 참조)
+  let items = [];
   let currentPreset = presets[0]; 
   let mode = 'normal'; 
   let lastRemoved = null;
   let isSpinning = false;
   let currentRotation = 0;
-  let spinDuration = 10; 
 
-  // 도네 룰렛 상태
+  let currentSegments = []; 
   let isDonationMode = false;
   let donationItems = [
     { name: '', weight: 1 },
     { name: '', weight: 1 }
   ];
-  let donationSegments = [];
 
   function showResultOverlay(text) {
     resultModalText.textContent = text;
@@ -800,10 +812,17 @@
     resultOverlay.style.display = 'none';
     rouletteWrapper.classList.remove('fullscreen');
     
-    // 스케일 초기화
     const container = rouletteWrapper.querySelector('.wheel-container');
     container.style.transform = '';
   });
+
+  function showOneMoreEvent(callback) {
+    oneMoreOverlay.style.display = 'flex';
+    setTimeout(() => {
+      oneMoreOverlay.style.display = 'none';
+      if (callback) callback();
+    }, 1800); // 1.8초간 보여줌
+  }
 
   function initPresetSelect() {
     presets.forEach(p => {
@@ -824,9 +843,8 @@
 
     if (preset.type === 'bus') {
       busGroup.style.display = 'block';
-      // 버스 룰렛은 인원수에 따라 가변적이므로 저장소 값을 우선 사용하되 빈 값이면 기본 생성
       if (presetStorage[preset.id].length === 0) {
-        applyBusPreset(); // 기본 2인으로 생성 후 저장
+        applyBusPreset();
       } else {
         items = presetStorage[preset.id];
         updateAll();
@@ -836,7 +854,6 @@
       items = presetStorage[preset.id];
       updateAll();
     } else {
-      // 저장소에 저장된 해당 프리셋의 아이템 배열을 참조 (수정 시 저장소도 자동 업데이트)
       items = presetStorage[preset.id];
       updateAll();
     }
@@ -876,7 +893,6 @@
 
   function applyBusPreset() {
     const n = parseInt(busCountSelect.value, 10) || 2;
-    // 새 배열 생성 후 저장소 업데이트 및 현재 items 교체
     const newItems = Array.from({ length: n }, (_, i) => `${i + 1}번`);
     presetStorage[currentPreset.id] = newItems;
     items = presetStorage[currentPreset.id];
@@ -960,7 +976,7 @@
       input.type = 'text';
       input.value = text;
       input.addEventListener('input', () => {
-        items[idx] = input.value.trim(); // items가 저장소 배열을 참조하므로 바로 반영됨
+        items[idx] = input.value.trim();
         renderWheel();
         renderCurrentOptions();
       });
@@ -970,7 +986,7 @@
       removeBtn.className = 'item-remove';
       removeBtn.textContent = '✕';
       removeBtn.addEventListener('click', () => {
-        items.splice(idx, 1); // items가 저장소 배열을 참조하므로 바로 반영됨
+        items.splice(idx, 1);
         updateAll();
       });
 
@@ -1004,9 +1020,10 @@
   }
 
   function renderWheel() {
+    currentSegments = []; 
+
     if (isDonationMode) {
       const active = donationItems.filter(e => e.name.trim() !== '' && e.weight > 0);
-      donationSegments = [];
 
       if (!active.length) {
         wheel.style.background = 'radial-gradient(circle at 30% 20%, #020617, #020617)';
@@ -1049,11 +1066,14 @@
 
         wheelLabels.appendChild(label);
 
-        donationSegments.push({
+        // sliceAngle calculation for jitter
+        const sliceAngle = (entry.weight / totalWeight) * 360;
+
+        currentSegments.push({
           name: entry.name,
-          weight: entry.weight,
-          center0,
-          labelAngle
+          centerAngle: center0,
+          sliceAngle: sliceAngle,
+          weight: entry.weight
         });
       });
 
@@ -1077,6 +1097,13 @@
       const end = (i + 1) * step;
       const color = colors[i % colors.length];
       parts.push(`${color} ${start}deg ${end}deg`);
+      
+      const centerAngle = start + (step / 2);
+      currentSegments.push({
+        name: activeItems[i],
+        centerAngle: centerAngle,
+        sliceAngle: step
+      });
     }
     wheel.style.background = `conic-gradient(${parts.join(',')})`;
 
@@ -1112,153 +1139,234 @@
     renderWheel();
   }
 
-  function handleWin(winnerIndex) {
-    const activeItems = items.filter(t => t.trim() !== '');
-    if (!activeItems.length) return;
-
-    const winnerText = activeItems[winnerIndex];
-    if (!winnerText) return;
-
+  function handleWin(winnerName) {
     let displayText = '';
+    
+    let winnerOriginalIndex = -1;
 
     if (mode === 'refundMultiplier') {
       const base = parseFloat(refundBaseInput.value || '0');
-      const m = multiplierMap[winnerText]; // undefined면 일반 텍스트 취급
-      
-      // m이 0이거나 양수일 때 계산 (0배 포함)
+      const m = multiplierMap[winnerName];
       if (base >= 0 && typeof m === 'number') {
         const amount = Math.round(base * m);
-        displayText = `${winnerText} 당첨!  약 ${amount.toLocaleString()}원`;
+        displayText = `${winnerName} 당첨!  약 ${amount.toLocaleString()}원`;
       } else {
-        displayText = `${winnerText} 당첨!`;
+        displayText = `${winnerName} 당첨!`;
       }
     } else {
-      displayText = `${winnerText} 당첨!`;
+      displayText = `${winnerName} 당첨!`;
     }
 
     resultValue.textContent = displayText;
     showResultOverlay(displayText);
 
-    if (removeOnWinCheckbox.checked) {
-      let count = -1;
+    if (removeOnWinCheckbox.checked && !isDonationMode) {
+      let activeCount = -1;
       for (let i = 0; i < items.length; i++) {
         if (items[i].trim() === '') continue;
-        count++;
-        if (count === winnerIndex) {
-          lastRemoved = items[i];
-          items.splice(i, 1); // 저장소 참조이므로 저장소에도 반영
-          updateAll();
-          break;
+        activeCount++;
+        if (items[i] === winnerName) {
+           winnerOriginalIndex = i;
+           break;
         }
       }
-    }
-  }
 
-  function handleWinDonation(segment) {
-    if (!segment || !segment.name) return;
-    const displayText = `${segment.name} 당첨!`;
-    resultValue.textContent = displayText;
-    showResultOverlay(displayText);
+      if (winnerOriginalIndex !== -1) {
+        lastRemoved = items[winnerOriginalIndex];
+        items.splice(winnerOriginalIndex, 1);
+        updateAll();
+      }
+    }
   }
 
   function spin() {
     if (isSpinning) return;
+    if (!currentSegments.length) return;
 
+    let winnerIndex = 0;
+    
+    // 1. 당첨자 선정 (확률에 따름)
     if (isDonationMode) {
-      if (!donationSegments.length) return;
-      const totalWeight = donationSegments.reduce((sum, s) => sum + s.weight, 0);
-      if (totalWeight <= 0) return;
-
+      const totalWeight = currentSegments.reduce((sum, s) => sum + s.weight, 0);
       let r = Math.random() * totalWeight;
-      let winnerSegment = donationSegments[0];
-      for (const seg of donationSegments) {
-        if (r < seg.weight) {
-          winnerSegment = seg;
+      for (let i = 0; i < currentSegments.length; i++) {
+        if (r < currentSegments[i].weight) {
+          winnerIndex = i;
           break;
         }
-        r -= seg.weight;
+        r -= currentSegments[i].weight;
       }
-
-      startSpinAnimation(winnerSegment.labelAngle, () => {
-         handleWinDonation(winnerSegment);
-      });
-      return;
+    } else {
+      winnerIndex = Math.floor(Math.random() * currentSegments.length);
     }
 
-    const activeItems = items.filter(t => t.trim() !== '');
-    const n = activeItems.length;
-    if (!n) return;
+    // 2. '한번 더!' 이벤트 시퀀스 생성
+    let sequence = [winnerIndex];
+    const oneMoreChance = 0.15; // 15% 확률
+    
+    // 무한 루프 방지 및 연속 발동 가능 로직
+    let safety = 0;
+    
+    // 룰렛 칸이 2개 이상일 때만 발동
+    while (currentSegments.length > 1 && Math.random() < oneMoreChance && safety < 5) {
+        const currentTarget = sequence[0]; // 현재 시퀀스의 첫 번째(가장 나중에 실행될 타겟)
+        
+        // 시각적으로 1~5칸 "전"에 멈추는 가짜 타겟 생성
+        const gap = 1 + Math.floor(Math.random() * 5); 
+        const fakeIndex = (currentTarget + gap) % currentSegments.length;
+        
+        sequence.unshift(fakeIndex);
+        safety++;
+    }
 
-    const step = 360 / n;
-    const winnerIndex = Math.floor(Math.random() * n);
-    const angle = -90 + step * winnerIndex + step / 2;
-
-    startSpinAnimation(angle, () => {
-       handleWin(winnerIndex);
-    });
+    // 3. 시퀀스 실행
+    runSpinSequence(sequence, 0);
   }
 
-  function startSpinAnimation(targetAngle, callback) {
+  function runSpinSequence(sequence, stepIndex) {
+      const targetIndex = sequence[stepIndex];
+      const isFirstSpin = (stepIndex === 0);
+      const isLastSpin = (stepIndex === sequence.length - 1);
+
+      // 이번 회전이 끝나면 실행할 콜백
+      const onFinish = () => {
+          if (isLastSpin) {
+              // 모든 시퀀스 종료 -> 결과창 표시
+              isSpinning = false;
+              handleWin(currentSegments[targetIndex].name);
+          } else {
+              // 다음 단계가 남음 -> '한번 더' 이벤트 표시 후 다음 스핀
+              showOneMoreEvent(() => {
+                  runSpinSequence(sequence, stepIndex + 1);
+              });
+          }
+      };
+
+      if (isFirstSpin) {
+          // 첫 회전은 롱 스핀
+          startLongSpin(targetIndex, onFinish);
+      } else {
+          // 추가 회전은 틱틱틱 이동
+          // targetIndex가 목표, 현재 위치는 sequence[stepIndex-1]
+          const prevIndex = sequence[stepIndex - 1];
+          startStepwiseMove(prevIndex, targetIndex, onFinish);
+      }
+  }
+
+  function startLongSpin(winnerIndex, callback) {
     isSpinning = true;
-    
-    // 전체 화면 모드 진입
     rouletteWrapper.classList.add('fullscreen');
 
-    // 뷰포트 크기에 맞춰 스케일 계산 (여백 고려)
     const margin = 40;
-    const baseSize = 360; // CSS에 정의된 wheel-container 크기
+    const baseSize = 360; 
     const minDimension = Math.min(window.innerWidth, window.innerHeight) - (margin * 2);
     let scale = minDimension / baseSize;
-    // 최소한의 크기는 보장
     if (scale < 0.5) scale = 0.5; 
 
-    // 인라인 스타일로 scale 적용 (CSS transform과 transition 유지)
     const container = rouletteWrapper.querySelector('.wheel-container');
     container.style.transform = `scale(${scale})`;
 
-    const targetBase = -90;
-    let phi = (targetAngle + currentRotation - targetBase) % 360;
-    if (phi < 0) phi += 360;
-    const extraSpins = 4 + Math.floor(Math.random() * 3);
-    const delta = (360 - phi) + 360 * extraSpins;
-    const finalRotation = currentRotation + delta;
+    const segment = currentSegments[winnerIndex];
+    // Jitter: +/- 35% of slice width
+    const jitter = (Math.random() - 0.5) * (segment.sliceAngle * 0.7);
+    
+    // Target Angle
+    const targetAngleBase = -segment.centerAngle - jitter;
 
-    const duration = spinDuration;
-    // transition 속성을 재설정하여 scale과 rotate가 동시에 부드럽게 적용되도록 함
-    // scale은 위에서 inline style로 세팅했고, rotate는 여기서 transform으로 덮어쓰므로 
-    // 두 변환을 합쳐서 문자열을 만들어야 함
+    // Extra Spins: 10~15 turns
+    const extraSpins = 10 + Math.floor(Math.random() * 5); 
     
-    // 주의: transform 속성을 하나로 합쳐야 함. 위에서 scale만 설정하면, 아래에서 rotate 설정시 덮어씌워짐.
-    // 따라서 scale 값을 변수에 저장해두고 여기서 같이 적용해야 함.
+    let finalRotation = targetAngleBase;
+    while (finalRotation <= currentRotation) {
+        finalRotation += 360;
+    }
+    finalRotation += (extraSpins * 360);
+
+    // Duration: 12s ~ 15s
+    const duration = 12 + Math.random() * 3;
     
-    // wheel 자체는 rotate만 담당하고, wheel-container가 scale을 담당하는 구조라면 간섭 없음.
-    // HTML 구조: .wheel-container > .wheel
-    // .wheel-container에 scale 적용, .wheel에 rotate 적용.
-    // 위 코드에서 container는 .wheel-container임. OK.
-    
-    // .wheel 회전 애니메이션
-    wheel.style.transition = `transform ${duration}s cubic-bezier(0.19, 1, 0.22, 1)`;
-    wheelLabels.style.transition = `transform ${duration}s cubic-bezier(0.19, 1, 0.22, 1)`;
+    // Easing: Single curve for heavy friction feel
+    wheel.style.transition = `transform ${duration}s cubic-bezier(0.12, 0.8, 0.05, 1.0)`;
+    wheelLabels.style.transition = `transform ${duration}s cubic-bezier(0.12, 0.8, 0.05, 1.0)`;
+
+    // Force reflow
+    void wheel.offsetWidth;
 
     requestAnimationFrame(() => {
       wheel.style.transform = `rotate(${finalRotation}deg)`;
       wheelLabels.style.transform = `rotate(${finalRotation}deg)`;
     });
+    
+    currentRotation = finalRotation;
 
     setTimeout(() => {
-      currentRotation = finalRotation;
-      isSpinning = false;
-      callback();
-    }, duration * 1000 + 300); // 딜레이 약간 추가
+        // 애니메이션 끝나면 콜백 (여기서 isSpinning을 끄지 않음, 이벤트 연결 위해)
+        callback(); 
+    }, duration * 1000);
   }
 
-  // 이벤트들
+  function startStepwiseMove(fromIndex, toIndex, callback) {
+      // 한 칸씩 덜컹거리며 이동하는 함수
+      const total = currentSegments.length;
+      const path = [];
+      let curr = fromIndex;
+      
+      // 경로 생성 (시각적 순방향 = 인덱스 역방향)
+      // 최대 10칸까지만 안전장치
+      let safety = 0;
+      while (curr !== toIndex && safety < 10) {
+          curr = (curr - 1 + total) % total;
+          path.push(curr);
+          safety++;
+      }
+      
+      runStep(0);
+      
+      function runStep(idx) {
+          if (idx >= path.length) {
+              callback();
+              return;
+          }
+          
+          const targetIdx = path[idx];
+          const segment = currentSegments[targetIdx];
+          
+          // 각 단계마다 살짝 랜덤 지터 (중앙 기준)
+          const jitter = (Math.random() - 0.5) * (segment.sliceAngle * 0.4);
+          const targetAngleBase = -segment.centerAngle - jitter;
+          
+          let targetRotation = targetAngleBase;
+          while (targetRotation <= currentRotation) {
+              targetRotation += 360;
+          }
+          
+          // 한 칸 이동 시간: 0.7~0.9초
+          const stepDuration = 0.7 + Math.random() * 0.2;
+          
+          wheel.style.transition = `transform ${stepDuration}s cubic-bezier(0.175, 0.885, 0.32, 1.275)`; // 덜컹거리는 이징
+          wheelLabels.style.transition = `transform ${stepDuration}s cubic-bezier(0.175, 0.885, 0.32, 1.275)`;
+          
+          void wheel.offsetWidth;
+          
+          requestAnimationFrame(() => {
+              wheel.style.transform = `rotate(${targetRotation}deg)`;
+              wheelLabels.style.transform = `rotate(${targetRotation}deg)`;
+          });
+          
+          currentRotation = targetRotation;
+          
+          setTimeout(() => {
+              runStep(idx + 1);
+          }, stepDuration * 1000);
+      }
+  }
+
   presetSelect.addEventListener('change', () => {
     const id = presetSelect.value;
     const preset = presets.find(p => p.id === id) || presets[0];
 
     if (isDonationMode) {
-      currentPreset = preset; // 나중에 일반 모드로 돌아갈 때 참고용
+      currentPreset = preset;
       return;
     }
     applyPreset(preset);
@@ -1272,7 +1380,6 @@
       ];
       updateAll();
     } else if (currentPreset) {
-      // 초기화 시 저장소를 원본 데이터로 덮어쓰기
       const original = presets.find(p => p.id === currentPreset.id);
       if (original) {
         presetStorage[currentPreset.id] = [...original.items];
@@ -1313,8 +1420,6 @@
       items.push('');
     }
     updateAll();
-
-    // 항목 추가 시 스크롤을 최하단으로 자동 이동
     setTimeout(() => {
       itemsEditor.scrollTop = itemsEditor.scrollHeight;
     }, 0);
@@ -1349,22 +1454,10 @@
     applyBusPreset();
   });
 
-  speedSelect.addEventListener('change', () => {
-    const val = speedSelect.value;
-    if (val === 'verySlow') {
-      spinDuration = 10;
-    } else if (val === 'slow') {
-      spinDuration = 6;
-    } else if (val === 'fast') {
-      spinDuration = 2;
-    } else {
-      spinDuration = 4;
-    }
-  });
+  speedSelect.addEventListener('change', () => {});
 
   spinBtn.addEventListener('click', spin);
 
-  // 도네 룰렛 모드 토글
   donationModeBtn.addEventListener('click', () => {
     isDonationMode = !isDonationMode;
     if (isDonationMode) {
@@ -1383,7 +1476,6 @@
     updateAll();
   });
 
-  // 초기 구동
   initPresetSelect();
   applyPreset(currentPreset);
 })();
