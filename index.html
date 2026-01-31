@@ -234,6 +234,46 @@
     margin: 0 4px 4px 0;
     border: 1px solid rgba(254,243,199,0.7);
   }
+
+  .donation-export {
+    margin-top: 10px;
+    padding: 10px;
+    border-radius: 14px;
+    background: rgba(2,6,23,0.55);
+    border: 1px solid rgba(55,65,81,0.7);
+  }
+  .donation-export-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+  #donationExportText {
+    flex: 1;
+    background: rgba(2,6,23,0.9);
+  }
+
+  .toast {
+    position: fixed;
+    left: 50%;
+    bottom: 26px;
+    transform: translateX(-50%);
+    background: rgba(2,6,23,0.92);
+    border: 1px solid rgba(248,181,71,0.75);
+    color: #fef3c7;
+    padding: 10px 14px;
+    border-radius: 999px;
+    font-size: 0.85rem;
+    box-shadow: 0 18px 45px rgba(0,0,0,0.6);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.18s ease, transform 0.18s ease;
+    z-index: 3000;
+  }
+  .toast.show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(-6px);
+  }
+
   .hint {
     font-size: 0.72rem;
     color: #9ca3af;
@@ -595,6 +635,15 @@
         </div>
 
         <div class="current-options" id="currentOptions"></div>
+
+        <!-- 도네 룰렛 텍스트 내보내기 (클립보드) -->
+        <div class="donation-export" id="donationExportWrap" style="display:none;">
+          <div class="donation-export-row">
+            <input type="text" id="donationExportText" readonly placeholder="예: 짱구*5,짱아*10" />
+            <button class="btn-secondary btn-chip" id="copyDonationBtn">복사</button>
+          </div>
+          <div class="hint">도네 룰렛 항목(이름/지분)을 "이름*지분" 형태로 합쳐서 복사합니다.</div>
+        </div>
       </div>
 
       <div class="controls-group" id="refundGroup">
@@ -718,7 +767,26 @@
   const resultModalText = document.getElementById('resultModalText');
   const oneMoreOverlay = document.getElementById('oneMoreOverlay');
 
+  // 도네 룰렛 텍스트 내보내기
+  const donationExportWrap = document.getElementById('donationExportWrap');
+  const donationExportText = document.getElementById('donationExportText');
+  const copyDonationBtn = document.getElementById('copyDonationBtn');
+
   const colors = ['#f97316', '#38bdf8', '#a855f7', '#22c55e', '#ec4899', '#4f46e5', '#facc15', '#14b8a6'];
+
+  // 토스트
+  const toastEl = document.createElement('div');
+  toastEl.className = 'toast';
+  toastEl.id = 'toast';
+  document.body.appendChild(toastEl);
+
+  let toastTimer = null;
+  function showToast(msg) {
+    toastEl.textContent = msg;
+    toastEl.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => toastEl.classList.remove('show'), 1200);
+  }
 
   const presets = [
     {
@@ -790,18 +858,54 @@
   };
 
   let items = [];
-  let currentPreset = presets[0]; 
-  let mode = 'normal'; 
+  let currentPreset = presets[0];
+  let mode = 'normal';
   let lastRemoved = null;
   let isSpinning = false;
   let currentRotation = 0;
 
-  let currentSegments = []; 
+  let currentSegments = [];
   let isDonationMode = false;
   let donationItems = [
     { name: '', weight: 1 },
     { name: '', weight: 1 }
   ];
+
+  function buildDonationExportString() {
+    // 이름이 비어있지 않고 지분이 1 이상인 항목만 포함
+    const active = donationItems
+      .map(e => ({ name: (e.name || '').trim(), weight: parseInt(e.weight, 10) }))
+      .filter(e => e.name !== '' && Number.isFinite(e.weight) && e.weight > 0);
+
+    // 기본 포맷: 이름*지분,이름*지분...
+    return active.map(e => `${e.name}*${e.weight}`).join(',');
+  }
+
+  async function copyToClipboard(text) {
+    // 최신 브라우저
+    try {
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(text);
+        return true;
+      }
+    } catch (e) {}
+
+    // fallback
+    try {
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.setAttribute('readonly', '');
+      ta.style.position = 'fixed';
+      ta.style.left = '-9999px';
+      document.body.appendChild(ta);
+      ta.select();
+      const ok = document.execCommand('copy');
+      document.body.removeChild(ta);
+      return ok;
+    } catch (e) {
+      return false;
+    }
+  }
 
   function showResultOverlay(text) {
     resultModalText.textContent = text;
@@ -811,7 +915,7 @@
   resultOverlay.addEventListener('click', () => {
     resultOverlay.style.display = 'none';
     rouletteWrapper.classList.remove('fullscreen');
-    
+
     const container = rouletteWrapper.querySelector('.wheel-container');
     container.style.transform = '';
   });
@@ -1000,14 +1104,24 @@
   function renderCurrentOptions() {
     currentOptionsEl.innerHTML = '';
 
+    // 기본적으로 숨김
+    donationExportWrap.style.display = 'none';
+
     if (isDonationMode) {
       if (!donationItems.length) return;
+
       donationItems.forEach((e, idx) => {
         const span = document.createElement('span');
         const name = e.name || '(빈 항목)';
         span.textContent = `${idx + 1}. ${name} (지분 ${e.weight})`;
         currentOptionsEl.appendChild(span);
       });
+
+      // 도네 내보내기 문자열 자동 반영
+      const exportStr = buildDonationExportString();
+      donationExportText.value = exportStr;
+      donationExportWrap.style.display = 'block';
+      copyDonationBtn.disabled = exportStr.trim() === '';
       return;
     }
 
@@ -1020,7 +1134,7 @@
   }
 
   function renderWheel() {
-    currentSegments = []; 
+    currentSegments = [];
 
     if (isDonationMode) {
       const active = donationItems.filter(e => e.name.trim() !== '' && e.weight > 0);
@@ -1061,8 +1175,7 @@
 
         label.style.left = '50%';
         label.style.top = '50%';
-        label.style.transform =
-          `translate(-50%, -50%) translate(${x}px, ${y}px) rotate(${labelAngle}deg)`;
+        label.style.transform = `translate(-50%, -50%) translate(${x}px, ${y}px) rotate(${labelAngle}deg)`;
 
         wheelLabels.appendChild(label);
 
@@ -1097,7 +1210,7 @@
       const end = (i + 1) * step;
       const color = colors[i % colors.length];
       parts.push(`${color} ${start}deg ${end}deg`);
-      
+
       const centerAngle = start + (step / 2);
       currentSegments.push({
         name: activeItems[i],
@@ -1125,8 +1238,7 @@
 
       label.style.left = '50%';
       label.style.top = '50%';
-      label.style.transform =
-        `translate(-50%, -50%) translate(${x}px, ${y}px) rotate(${angle}deg)`;
+      label.style.transform = `translate(-50%, -50%) translate(${x}px, ${y}px) rotate(${angle}deg)`;
 
       wheelLabels.appendChild(label);
     });
@@ -1141,8 +1253,6 @@
 
   function handleWin(winnerName) {
     let displayText = '';
-    
-    let winnerOriginalIndex = -1;
 
     if (mode === 'refundMultiplier') {
       const base = parseFloat(refundBaseInput.value || '0');
@@ -1161,13 +1271,12 @@
     showResultOverlay(displayText);
 
     if (removeOnWinCheckbox.checked && !isDonationMode) {
-      let activeCount = -1;
+      let winnerOriginalIndex = -1;
       for (let i = 0; i < items.length; i++) {
         if (items[i].trim() === '') continue;
-        activeCount++;
         if (items[i] === winnerName) {
-           winnerOriginalIndex = i;
-           break;
+          winnerOriginalIndex = i;
+          break;
         }
       }
 
@@ -1184,7 +1293,7 @@
     if (!currentSegments.length) return;
 
     let winnerIndex = 0;
-    
+
     // 1. 당첨자 선정 (확률에 따름)
     if (isDonationMode) {
       const totalWeight = currentSegments.reduce((sum, s) => sum + s.weight, 0);
@@ -1203,20 +1312,20 @@
     // 2. '한번 더!' 이벤트 시퀀스 생성
     let sequence = [winnerIndex];
     const oneMoreChance = 0.15; // 15% 확률
-    
+
     // 무한 루프 방지 및 연속 발동 가능 로직
     let safety = 0;
-    
+
     // 룰렛 칸이 2개 이상일 때만 발동
     while (currentSegments.length > 1 && Math.random() < oneMoreChance && safety < 5) {
-        const currentTarget = sequence[0]; // 현재 시퀀스의 첫 번째(가장 나중에 실행될 타겟)
-        
-        // 시각적으로 1~5칸 "전"에 멈추는 가짜 타겟 생성
-        const gap = 1 + Math.floor(Math.random() * 5); 
-        const fakeIndex = (currentTarget + gap) % currentSegments.length;
-        
-        sequence.unshift(fakeIndex);
-        safety++;
+      const currentTarget = sequence[0]; // 현재 시퀀스의 첫 번째(가장 나중에 실행될 타겟)
+
+      // 시각적으로 1~5칸 "전"에 멈추는 가짜 타겟 생성
+      const gap = 1 + Math.floor(Math.random() * 5);
+      const fakeIndex = (currentTarget + gap) % currentSegments.length;
+
+      sequence.unshift(fakeIndex);
+      safety++;
     }
 
     // 3. 시퀀스 실행
@@ -1224,33 +1333,27 @@
   }
 
   function runSpinSequence(sequence, stepIndex) {
-      const targetIndex = sequence[stepIndex];
-      const isFirstSpin = (stepIndex === 0);
-      const isLastSpin = (stepIndex === sequence.length - 1);
+    const targetIndex = sequence[stepIndex];
+    const isFirstSpin = (stepIndex === 0);
+    const isLastSpin = (stepIndex === sequence.length - 1);
 
-      // 이번 회전이 끝나면 실행할 콜백
-      const onFinish = () => {
-          if (isLastSpin) {
-              // 모든 시퀀스 종료 -> 결과창 표시
-              isSpinning = false;
-              handleWin(currentSegments[targetIndex].name);
-          } else {
-              // 다음 단계가 남음 -> '한번 더' 이벤트 표시 후 다음 스핀
-              showOneMoreEvent(() => {
-                  runSpinSequence(sequence, stepIndex + 1);
-              });
-          }
-      };
-
-      if (isFirstSpin) {
-          // 첫 회전은 롱 스핀
-          startLongSpin(targetIndex, onFinish);
+    const onFinish = () => {
+      if (isLastSpin) {
+        isSpinning = false;
+        handleWin(currentSegments[targetIndex].name);
       } else {
-          // 추가 회전은 틱틱틱 이동
-          // targetIndex가 목표, 현재 위치는 sequence[stepIndex-1]
-          const prevIndex = sequence[stepIndex - 1];
-          startStepwiseMove(prevIndex, targetIndex, onFinish);
+        showOneMoreEvent(() => {
+          runSpinSequence(sequence, stepIndex + 1);
+        });
       }
+    };
+
+    if (isFirstSpin) {
+      startLongSpin(targetIndex, onFinish);
+    } else {
+      const prevIndex = sequence[stepIndex - 1];
+      startStepwiseMove(prevIndex, targetIndex, onFinish);
+    }
   }
 
   function startLongSpin(winnerIndex, callback) {
@@ -1258,10 +1361,10 @@
     rouletteWrapper.classList.add('fullscreen');
 
     const margin = 40;
-    const baseSize = 360; 
+    const baseSize = 360;
     const minDimension = Math.min(window.innerWidth, window.innerHeight) - (margin * 2);
     let scale = minDimension / baseSize;
-    if (scale < 0.5) scale = 0.5; 
+    if (scale < 0.5) scale = 0.5;
 
     const container = rouletteWrapper.querySelector('.wheel-container');
     container.style.transform = `scale(${scale})`;
@@ -1269,96 +1372,87 @@
     const segment = currentSegments[winnerIndex];
     // Jitter: +/- 35% of slice width
     const jitter = (Math.random() - 0.5) * (segment.sliceAngle * 0.7);
-    
-    // Target Angle
+
     const targetAngleBase = -segment.centerAngle - jitter;
 
     // Extra Spins: 10~15 turns
-    const extraSpins = 10 + Math.floor(Math.random() * 5); 
-    
+    const extraSpins = 10 + Math.floor(Math.random() * 5);
+
     let finalRotation = targetAngleBase;
     while (finalRotation <= currentRotation) {
-        finalRotation += 360;
+      finalRotation += 360;
     }
     finalRotation += (extraSpins * 360);
 
     // Duration: 12s ~ 15s
     const duration = 12 + Math.random() * 3;
-    
-    // Easing: Single curve for heavy friction feel
+
     wheel.style.transition = `transform ${duration}s cubic-bezier(0.12, 0.8, 0.05, 1.0)`;
     wheelLabels.style.transition = `transform ${duration}s cubic-bezier(0.12, 0.8, 0.05, 1.0)`;
 
-    // Force reflow
     void wheel.offsetWidth;
 
     requestAnimationFrame(() => {
       wheel.style.transform = `rotate(${finalRotation}deg)`;
       wheelLabels.style.transform = `rotate(${finalRotation}deg)`;
     });
-    
+
     currentRotation = finalRotation;
 
     setTimeout(() => {
-        // 애니메이션 끝나면 콜백 (여기서 isSpinning을 끄지 않음, 이벤트 연결 위해)
-        callback(); 
+      callback();
     }, duration * 1000);
   }
 
   function startStepwiseMove(fromIndex, toIndex, callback) {
-      // 한 칸씩 덜컹거리며 이동하는 함수
-      const total = currentSegments.length;
-      const path = [];
-      let curr = fromIndex;
-      
-      // 경로 생성 (시각적 순방향 = 인덱스 역방향)
-      // 최대 10칸까지만 안전장치
-      let safety = 0;
-      while (curr !== toIndex && safety < 10) {
-          curr = (curr - 1 + total) % total;
-          path.push(curr);
-          safety++;
+    const total = currentSegments.length;
+    const path = [];
+    let curr = fromIndex;
+
+    let safety = 0;
+    while (curr !== toIndex && safety < 10) {
+      curr = (curr - 1 + total) % total;
+      path.push(curr);
+      safety++;
+    }
+
+    runStep(0);
+
+    function runStep(idx) {
+      if (idx >= path.length) {
+        callback();
+        return;
       }
-      
-      runStep(0);
-      
-      function runStep(idx) {
-          if (idx >= path.length) {
-              callback();
-              return;
-          }
-          
-          const targetIdx = path[idx];
-          const segment = currentSegments[targetIdx];
-          
-          // 각 단계마다 살짝 랜덤 지터 (중앙 기준)
-          const jitter = (Math.random() - 0.5) * (segment.sliceAngle * 0.4);
-          const targetAngleBase = -segment.centerAngle - jitter;
-          
-          let targetRotation = targetAngleBase;
-          while (targetRotation <= currentRotation) {
-              targetRotation += 360;
-          }
-          
-          // 한 칸 이동 시간: 0.7~0.9초
-          const stepDuration = 0.7 + Math.random() * 0.2;
-          
-          wheel.style.transition = `transform ${stepDuration}s cubic-bezier(0.175, 0.885, 0.32, 1.275)`; // 덜컹거리는 이징
-          wheelLabels.style.transition = `transform ${stepDuration}s cubic-bezier(0.175, 0.885, 0.32, 1.275)`;
-          
-          void wheel.offsetWidth;
-          
-          requestAnimationFrame(() => {
-              wheel.style.transform = `rotate(${targetRotation}deg)`;
-              wheelLabels.style.transform = `rotate(${targetRotation}deg)`;
-          });
-          
-          currentRotation = targetRotation;
-          
-          setTimeout(() => {
-              runStep(idx + 1);
-          }, stepDuration * 1000);
+
+      const targetIdx = path[idx];
+      const segment = currentSegments[targetIdx];
+
+      const jitter = (Math.random() - 0.5) * (segment.sliceAngle * 0.4);
+      const targetAngleBase = -segment.centerAngle - jitter;
+
+      let targetRotation = targetAngleBase;
+      while (targetRotation <= currentRotation) {
+        targetRotation += 360;
       }
+
+      const stepDuration = 0.7 + Math.random() * 0.2;
+
+      wheel.style.transition = `transform ${stepDuration}s cubic-bezier(0.175, 0.885, 0.32, 1.275)`;
+      wheelLabels.style.transition = `transform ${stepDuration}s cubic-bezier(0.175, 0.885, 0.32, 1.275)`;
+
+      void wheel.offsetWidth;
+
+      requestAnimationFrame(() => {
+        wheel.style.transform = `rotate(${targetRotation}deg)`;
+        wheelLabels.style.transform = `rotate(${targetRotation}deg)`;
+      });
+
+      currentRotation = targetRotation;
+
+      setTimeout(() => {
+        runStep(idx + 1);
+      }, stepDuration * 1000);
+    }
   }
 
   presetSelect.addEventListener('change', () => {
@@ -1455,7 +1549,6 @@
   });
 
   speedSelect.addEventListener('change', () => {});
-
   spinBtn.addEventListener('click', spin);
 
   donationModeBtn.addEventListener('click', () => {
@@ -1475,6 +1568,63 @@
     }
     updateAll();
   });
+
+  // 도네 룰렛 텍스트 복사 (단일 리스너)
+  copyDonationBtn.addEventListener('click', async () => {
+    if (!isDonationMode) return;
+    const exportStr = buildDonationExportString();
+    donationExportText.value = exportStr;
+
+    if (!exportStr.trim()) {
+      showToast('복사할 항목이 없어요');
+      return;
+    }
+
+    const ok = await copyToClipboard(exportStr);
+    if (ok) showToast('복사되었습니다!');
+    else showToast('복사에 실패했어요');
+  });
+
+  // --- Dev tests (URL에 ?test=1 붙이면 콘솔에서 테스트 실행) ---
+  function runDevTests() {
+    const assert = (cond, msg) => {
+      if (!cond) throw new Error(`TEST FAIL: ${msg}`);
+    };
+
+    // Test 1: 기본 포맷
+    donationItems = [
+      { name: '짱구', weight: 5 },
+      { name: '짱아', weight: 10 },
+      { name: '봉미선', weight: 3 }
+    ];
+    assert(buildDonationExportString() === '짱구*5,짱아*10,봉미선*3', 'buildDonationExportString basic');
+
+    // Test 2: 빈 이름 제외
+    donationItems = [
+      { name: '짱구', weight: 5 },
+      { name: '', weight: 10 },
+      { name: '봉미선', weight: 3 }
+    ];
+    assert(buildDonationExportString() === '짱구*5,봉미선*3', 'exclude empty names');
+
+    // Test 3: 0/음수/NaN 지분 제외
+    donationItems = [
+      { name: '짱구', weight: 0 },
+      { name: '짱아', weight: -2 },
+      { name: '봉미선', weight: 'abc' },
+      { name: '유리', weight: 2 }
+    ];
+    assert(buildDonationExportString() === '유리*2', 'exclude invalid weights');
+
+    console.log('All dev tests passed');
+  }
+  try {
+    if (new URLSearchParams(location.search).get('test') === '1') {
+      runDevTests();
+    }
+  } catch (e) {
+    console.warn('Dev tests skipped:', e);
+  }
 
   initPresetSelect();
   applyPreset(currentPreset);
