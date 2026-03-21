@@ -161,6 +161,13 @@
     font-size: 0.9rem;
     color: #67e8f9;
   }
+  .stack-direct-input {
+    width: 64px !important;
+    min-width: 64px;
+    text-align: center;
+    padding: 6px 8px;
+    font-weight: 700;
+  }
 
   .item-badge {
     min-width: 26px;
@@ -696,13 +703,18 @@
 
         <div class="current-options" id="currentOptions"></div>
 
-        <!-- 도네 룰렛 텍스트 내보내기 (클립보드) -->
+        <!-- 도네 룰렛 텍스트 직접 수정/적용 -->
         <div class="donation-export" id="donationExportWrap" style="display:none;">
           <div class="donation-export-row">
-            <input type="text" id="donationExportText" readonly placeholder="예: 짱구*5,짱아*10" />
+            <input
+              type="text"
+              id="donationExportText"
+              placeholder="예: 짱구*5,짱아*10 또는 12*3,3*3,3312312*1"
+            />
+            <button class="btn-secondary btn-chip" id="applyDonationBtn">적용</button>
             <button class="btn-secondary btn-chip" id="copyDonationBtn">복사</button>
           </div>
-          <div class="hint">도네 룰렛 항목(이름/지분)을 "이름*지분" 형태로 합쳐서 복사합니다.</div>
+          <div class="hint">"이름*지분,이름*지분" 형태로 직접 수정할 수 있습니다. 숫자만 들어가도 이름으로 인식됩니다.</div>
         </div>
       </div>
 
@@ -827,6 +839,7 @@
 
   const donationExportWrap = document.getElementById('donationExportWrap');
   const donationExportText = document.getElementById('donationExportText');
+  const applyDonationBtn = document.getElementById('applyDonationBtn');
   const copyDonationBtn = document.getElementById('copyDonationBtn');
 
   // ✅ 한번더 이미지 오버레이
@@ -886,6 +899,7 @@
 
   let currentSegments = [];
   let isDonationMode = false;
+  let isEditingDonationText = false;
   let donationItems = [
     { name: '', weight: 1 },
     { name: '', weight: 1 }
@@ -929,6 +943,44 @@
       .map(e => ({ name: (e.name || '').trim(), weight: parseInt(e.weight, 10) }))
       .filter(e => e.name !== '' && Number.isFinite(e.weight) && e.weight > 0);
     return active.map(e => `${e.name}*${e.weight}`).join(',');
+  }
+
+  function parseDonationExportString(text) {
+    const raw = String(text || '').trim();
+    if (!raw) return [{ name: '', weight: 1 }];
+
+    const parsed = raw
+      .split(',')
+      .map(part => part.trim())
+      .filter(Boolean)
+      .map(part => {
+        const match = part.match(/^(.*?)\s*\*\s*(\d+)$/);
+        if (match) {
+          return {
+            name: match[1].trim(),
+            weight: Math.max(1, parseInt(match[2], 10) || 1)
+          };
+        }
+
+        return {
+          name: part.trim(),
+          weight: 1
+        };
+      })
+      .filter(item => item.name !== '');
+
+    return parsed.length ? parsed : [{ name: '', weight: 1 }];
+  }
+
+  function applyDonationExportFromText(showMessage = true) {
+    if (!isDonationMode) return;
+
+    donationItems = parseDonationExportString(donationExportText.value);
+    updateAll();
+
+    if (showMessage) {
+      showToast('도네 룰렛이 반영되었습니다');
+    }
   }
 
   async function copyToClipboard(text) {
@@ -1077,7 +1129,7 @@
     itemCountInput.value = isDonationMode ? donationItems.length : items.length;
   }
 
-  function createStackStepper(value, onChange) {
+  function createStackEditor(value, onChange) {
     const wrap = document.createElement('div');
     wrap.className = 'stack-stepper';
 
@@ -1087,9 +1139,12 @@
     left.setAttribute('aria-label', '스택 감소');
     left.textContent = '◀';
 
-    const mid = document.createElement('div');
-    mid.className = 'stack-value';
-    mid.textContent = String(value);
+    const input = document.createElement('input');
+    input.type = 'number';
+    input.min = '1';
+    input.step = '1';
+    input.className = 'stack-direct-input';
+    input.value = String(Math.max(1, parseInt(value, 10) || 1));
 
     const right = document.createElement('button');
     right.type = 'button';
@@ -1099,15 +1154,29 @@
 
     function set(v) {
       const nv = Math.max(1, parseInt(v, 10) || 1);
-      mid.textContent = String(nv);
+      input.value = String(nv);
       onChange(nv);
     }
 
-    left.addEventListener('click', () => set((parseInt(mid.textContent, 10) || 1) - 1));
-    right.addEventListener('click', () => set((parseInt(mid.textContent, 10) || 1) + 1));
+    left.addEventListener('click', () => {
+      set((parseInt(input.value, 10) || 1) - 1);
+    });
+
+    right.addEventListener('click', () => {
+      set((parseInt(input.value, 10) || 1) + 1);
+    });
+
+    input.addEventListener('input', () => {
+      if (input.value === '') return;
+      set(input.value);
+    });
+
+    input.addEventListener('blur', () => {
+      set(input.value);
+    });
 
     wrap.appendChild(left);
-    wrap.appendChild(mid);
+    wrap.appendChild(input);
     wrap.appendChild(right);
     return wrap;
   }
@@ -1134,7 +1203,7 @@
           renderCurrentOptions();
         });
 
-        const stepper = createStackStepper(entry.weight, (nv) => {
+        const stepper = createStackEditor(entry.weight, (nv) => {
           donationItems[idx].weight = nv;
           renderWheel();
           renderCurrentOptions();
@@ -1206,7 +1275,9 @@
       });
 
       const exportStr = buildDonationExportString();
-      donationExportText.value = exportStr;
+      if (!isEditingDonationText) {
+        donationExportText.value = exportStr;
+      }
       donationExportWrap.style.display = 'block';
       copyDonationBtn.disabled = exportStr.trim() === '';
       return;
@@ -1728,18 +1799,42 @@
       restorePrevBtn.disabled = true;
       busGroup.style.display = 'none';
       refundGroup.style.display = 'none';
+      isEditingDonationText = false;
     } else {
       donationModeBtn.textContent = '도네 룰렛으로 전환';
       presetSelect.disabled = false;
       refreshPresetUIWithoutReset();
+      isEditingDonationText = false;
     }
 
     updateAll();
   });
 
+  applyDonationBtn.addEventListener('click', () => {
+    applyDonationExportFromText();
+  });
+
+  donationExportText.addEventListener('focus', () => {
+    isEditingDonationText = true;
+  });
+
+  donationExportText.addEventListener('blur', () => {
+    isEditingDonationText = false;
+    applyDonationExportFromText(false);
+  });
+
+  donationExportText.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      isEditingDonationText = false;
+      applyDonationExportFromText();
+      donationExportText.blur();
+    }
+  });
+
   copyDonationBtn.addEventListener('click', async () => {
     if (!isDonationMode) return;
-    const exportStr = buildDonationExportString();
+    const exportStr = donationExportText.value.trim() || buildDonationExportString();
     donationExportText.value = exportStr;
 
     if (!exportStr.trim()) {
@@ -1765,6 +1860,17 @@
       { name: '봉미선', weight: 3 }
     ];
     assert(buildDonationExportString() === '짱구*5,짱아*10,봉미선*3', 'buildDonationExportString basic');
+
+    // Test 1-1: parseDonationExportString 기본 파싱
+    let parsed = parseDonationExportString('짱구*5,짱아*10,봉미선*3');
+    assert(parsed.length === 3, 'parseDonationExportString length');
+    assert(parsed[0].name === '짱구' && parsed[0].weight === 5, 'parse first');
+    assert(parsed[1].name === '짱아' && parsed[1].weight === 10, 'parse second');
+
+    // Test 1-2: 숫자 이름도 허용
+    parsed = parseDonationExportString('12*3,3*3,3312312*1');
+    assert(parsed[0].name === '12' && parsed[0].weight === 3, 'numeric name parse');
+    assert(parsed[2].name === '3312312' && parsed[2].weight === 1, 'numeric long name parse');
 
     // Test 2: 빈 이름 제외
     donationItems = [
